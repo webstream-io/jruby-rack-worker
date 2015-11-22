@@ -1,4 +1,5 @@
 require 'java'
+require 'digest'
 require 'delayed_job' unless defined?(Delayed::Worker)
 
 module Delayed
@@ -13,9 +14,9 @@ module Delayed
       if @name.nil?
         # super - [prefix]host:hostname pid:process_pid
         begin
-          @name = "#{super} thread:#{thread_id}".freeze
+          @name = "#{super} path:#{path_hex} thread:#{thread_id}".freeze
         rescue
-          @name = "#{@name_prefix}thread:#{thread_id}".freeze
+          @name = "#{@name_prefix} path:#{path_hex} thread:#{thread_id}".freeze
         end
       end
       @name
@@ -33,6 +34,17 @@ module Delayed
           name
         end
       end
+    end
+
+    # With Tomcat's parallel deployment, multiple deployed instances
+    # might share same worker name. Differentiate them by adding path
+    # to name
+    # Hash the pathname to keep it short
+    #
+    # See https://github.com/kares/jruby-rack-worker/issues/18 for
+    # more info
+    def path_hex
+      Diesgt::MD5.hexdigest[0,10]
     end
 
     def exit!
